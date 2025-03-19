@@ -5,6 +5,9 @@ namespace App\Entity;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use App\Repository\TimeSlotRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -19,6 +22,8 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     order: ['startTime' => 'ASC'],
 )]
+#[ApiFilter(SearchFilter::class, properties: ['doctor' => 'exact'])]
+#[ApiFilter(BooleanFilter::class, properties: ['isAvailable'])]
 class TimeSlot
 {
     #[ORM\Id]

@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y \
     pdo_mysql \
     zip \
     intl \
+    opcache \
+    gd
+
 WORKDIR /var/www/html
 
 # Install Composer
@@ -36,9 +39,7 @@ CMD ["php-fpm"]
 
 FROM base-fpm as xdebug-fpm
 
-RUN apt-get update && apt-get install -y \
-    opcache \
-    gd
+RUN apt-get update && apt-get install -y
 
 # MailDev unterstützende Pakete installieren
 RUN apt-get install -y \

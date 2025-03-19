@@ -43,6 +43,47 @@ export const getTimeSlotsForDoctor = async (doctorId: number): Promise<TimeSlot[
   return response.data['hydra:member'];
 };
 
+export const checkTimeSlotAvailability = async (id: number): Promise<boolean> => {
+  try {
+    const response = await api.get(`/time_slots/${id}`);
+    return response.data.isAvailable;
+  } catch (error) {
+    console.error('Fehler bei der Verfügbarkeitsprüfung:', error);
+    return false;
+  }
+};
+
+// Echtzeit-Verfügbarkeitsprüfung mit Polling alle 5 Sekunden
+export const setupRealTimeAvailabilityCheck = (
+  timeSlotId: number, 
+  onUpdate: (available: boolean) => void,
+  interval = 5000
+): { stop: () => void } => {
+  let isRunning = true;
+  
+  const checkInterval = setInterval(async () => {
+    if (!isRunning) return;
+    
+    try {
+      const isAvailable = await checkTimeSlotAvailability(timeSlotId);
+      onUpdate(isAvailable);
+      
+      if (!isAvailable) {
+        clearInterval(checkInterval);
+      }
+    } catch (error) {
+      console.error('Fehler bei der Echtzeit-Verfügbarkeitsprüfung:', error);
+    }
+  }, interval);
+  
+  return {
+    stop: () => {
+      isRunning = false;
+      clearInterval(checkInterval);
+    }
+  };
+};
+
 // Termine API
 export const getAppointments = async (): Promise<Appointment[]> => {
   const response = await api.get('/appointments');

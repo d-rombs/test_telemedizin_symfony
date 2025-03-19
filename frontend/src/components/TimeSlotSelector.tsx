@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { getTimeSlotsForDoctor } from '../services/api';
+import { getTimeSlotsForDoctor, checkTimeSlotAvailability, setupRealTimeAvailabilityCheck } from '../services/api';
 
 interface TimeSlotSelectorProps {
   doctor: any;
@@ -14,6 +14,7 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({ doctor, onSelectTim
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [realTimeChecks, setRealTimeChecks] = useState<{ [key: number]: { stop: () => void } }>({});
 
   useEffect(() => {
     if (!doctor) return;
@@ -48,9 +49,65 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({ doctor, onSelectTim
     fetchTimeSlots();
   }, [doctor]);
 
+  // Starte Echtzeit-Verfügbarkeitsprüfungen für sichtbare Zeitslots
+  useEffect(() => {
+    // Stoppe alle existierenden Prüfungen
+    Object.values(realTimeChecks).forEach(check => check.stop());
+    setRealTimeChecks({});
+
+    // Starte neue Prüfungen für sichtbare Zeitslots
+    const visibleSlots = selectedDate
+      ? timeSlots.filter((slot: any) => 
+          format(new Date(slot.startTime), 'yyyy-MM-dd') === selectedDate
+        )
+      : timeSlots;
+
+    visibleSlots.forEach((slot: any) => {
+      if (slot.isAvailable) {
+        const check = setupRealTimeAvailabilityCheck(slot.id, (isAvailable) => {
+          setTimeSlots(prevSlots => 
+            prevSlots.map(s => 
+              s.id === slot.id 
+                ? { ...s, isAvailable: isAvailable }
+                : s
+            )
+          );
+          
+          if (!isAvailable) {
+            setError('Ein oder mehrere Zeitfenster sind nicht mehr verfügbar.');
+          }
+        });
+        
+        setRealTimeChecks(prev => ({
+          ...prev,
+          [slot.id]: check
+        }));
+      }
+    });
+
+    // Aufräumfunktion
+    return () => {
+      Object.values(realTimeChecks).forEach(check => check.stop());
+    };
+  }, [selectedDate, timeSlots]);
+
   const handleSelectTimeSlot = async (timeSlot: any) => {
     try {
-      // Im Symfony-Projekt könnte hier auch eine Verfügbarkeitsprüfung stattfinden
+      // Verfügbarkeit in Echtzeit prüfen, bevor der Slot ausgewählt wird
+      const isAvailable = await checkTimeSlotAvailability(timeSlot.id);
+      
+      if (!isAvailable) {
+        setError('Dieses Zeitfenster ist nicht mehr verfügbar. Bitte wählen Sie ein anderes.');
+        
+        // Zeitslots aktualisieren
+        if (doctor) {
+          const data = await getTimeSlotsForDoctor(doctor.id);
+          setTimeSlots(data);
+        }
+        
+        return;
+      }
+      
       onSelectTimeSlot(timeSlot);
     } catch (err) {
       setError('Fehler bei der Verfügbarkeitsprüfung. Bitte versuchen Sie es später erneut.');
@@ -98,13 +155,16 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({ doctor, onSelectTim
           filteredTimeSlots.map((slot: any) => (
             <div 
               key={slot.id} 
-              className="time-slot-item"
-              onClick={() => handleSelectTimeSlot(slot)}
+              className={`time-slot-item ${!slot.isAvailable ? 'unavailable' : ''}`}
+              onClick={() => slot.isAvailable && handleSelectTimeSlot(slot)}
             >
               <p>
                 {format(new Date(slot.startTime), 'HH:mm')} - 
                 {format(new Date(slot.endTime), 'HH:mm')}
               </p>
+              {!slot.isAvailable && (
+                <span className="status-badge">Nicht verfügbar</span>
+              )}
             </div>
           ))
         ) : (

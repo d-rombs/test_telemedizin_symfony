@@ -38,6 +38,9 @@ class AppointmentListener
         
         if ($matchingTimeSlot) {
             $matchingTimeSlot->setIsAvailable(false);
+            // Explizit speichern, um sicherzustellen, dass die Änderungen angewendet werden
+            $this->entityManager->persist($matchingTimeSlot);
+            $this->entityManager->flush();
         }
     }
 
