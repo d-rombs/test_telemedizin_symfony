@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  
+  # MailHog für E-Mail-Tests
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: telemedizin_symfony_mailhog
+    ports:
+      - "1027:1025"  # SMTP Server
+      - "8027:8025"  # Web Interface
+    networks:
+      - default
+    depends_on:
+      - php
+  
+  # Verbesserte Frontend-Konfiguration für Entwicklung
+  frontend:
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      # Integriere Backend-API mit HTTPS
+      - REACT_APP_API_URL=http://localhost:8002/api 

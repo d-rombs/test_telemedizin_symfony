@@ -1,0 +1,18 @@
+parameters:
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    App\EventListener\AppointmentListener:
+        tags:
+            - { name: 'doctrine.orm.entity_listener', event: 'prePersist', entity: 'App\Entity\Appointment' }
+            - { name: 'doctrine.orm.entity_listener', event: 'postPersist', entity: 'App\Entity\Appointment' }
